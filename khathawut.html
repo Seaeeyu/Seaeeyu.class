@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase CRUD Manager (ID Manual)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Chakra Petch', sans-serif; padding: 40px; background-color: #f0f2f5; color: #333; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { border-bottom: 2px solid #3ecf8e; padding-bottom: 10px; color: #1c1c1c; }
+        
+        /* สไตล์ฟอร์มเพิ่มข้อมูล */
+        .form-group { margin-bottom: 20px; display: flex; gap: 10px; background: #f9f9f9; padding: 15px; border-radius: 8px; }
+        input { padding: 10px; border: 1px solid #ddd; border-radius: 5px; flex: 1; }
+        .btn-add { background-color: #3ecf8e; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-add:hover { background-color: #36b37a; }
+
+        /* สไตล์ตาราง */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background-color: #f8f9fa; color: #666; }
+        .btn-delete { background-color: #ff4d4f; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        .btn-delete:hover { background-color: #d9363e; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>ห้องเรียนฮีโร่</h2>
+
+    <div class="form-group">
+        <input type="number" id="input-id" placeholder="ID (ตัวเลข)"> 
+        <input type="text" id="input-name" placeholder="ชื่อ">
+        <input type="text" id="input-class" placeholder="ห้อง">
+        <button class="btn-add" onclick="addItem()">+ เพิ่มข้อมูล</button>
+    </div>
+
+    <table id="data-table">
+        <thead>
+            <tr id="table-header">
+                <th>ID</th>
+                <th>name</th>
+                <th>class</th>
+                <th>จัดการ</th>
+            </tr>
+        </thead>
+        <tbody id="table-body">
+            </tbody>
+    </table>
+</div>
+
+<script>
+    // --- 1. ตั้งค่าการเชื่อมต่อ ---
+    const SUPABASE_URL = "https://dqzhutaczsdeltjtnifm.supabase.co"
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxemh1dGFjenNkZWx0anRuaWZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyOTEzNDAsImV4cCI6MjA4Mzg2NzM0MH0.NZzt4D7qY6hXLrmHVlzf5N7GFcvL6FpJYoOzWt2O_ns"
+    const TABLE_NAME = "students"
+
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    // --- 2. ฟังก์ชันดึงข้อมูลมาแสดงผล ---
+    async function fetchItems() {
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '<tr><td colspan="4">กำลังโหลด...</td></tr>';
+
+        const { data, error } = await _supabase
+            .from(TABLE_NAME)
+            .select('*')
+            .order('id', { ascending: true });
+
+        if (error) {
+            console.error(error);
+            tbody.innerHTML = `<tr><td colspan="4" style="color:red">Error: ${error.message}</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = '';
+        data.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${item.id}</td>
+                <td>${item.name || '-'}</td>
+                <td>${item.class || '-'}</td> 
+                <td>
+                    <button class="btn-delete" onclick="deleteItem(${item.id})">ลบ</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // --- 3. ฟังก์ชันเพิ่มข้อมูล (ID, Name, Class) ---
+    async function addItem() {
+        const idVal = document.getElementById('input-id').value;
+        const nameVal = document.getElementById('input-name').value;
+        const classVal = document.getElementById('input-class').value;
+
+        // ตรวจสอบว่ากรอกข้อมูลครบไหม
+        if (!idVal || !nameVal || !classVal) {
+            alert('กรุณากรอกข้อมูลให้ครบทุกช่อง (ID, ชื่อ, ห้อง)');
+            return;
+        }
+
+        const { error } = await _supabase
+            .from(TABLE_NAME)
+            .insert([
+                { 
+                    id: parseInt(idVal), 
+                    name: nameVal, 
+                    class: classVal 
+                }
+            ]);
+
+        if (error) {
+            alert('เพิ่มข้อมูลไม่สำเร็จ: ' + error.message + '\n(ตรวจสอบว่า ID ซ้ำหรือไม่?)');
+            console.error(error);
+        } else {
+            // ล้างค่าเมื่อสำเร็จ
+            document.getElementById('input-id').value = '';
+            document.getElementById('input-name').value = '';
+            document.getElementById('input-class').value = '';
+            fetchItems(); // โหลดตารางใหม่
+        }
+    }
+
+    // --- 4. ฟังก์ชันลบข้อมูล ---
+    async function deleteItem(id) {
+        if (!confirm(`ยืนยันการลบข้อมูล ID: ${id}?`)) return;
+
+        const { error } = await _supabase
+            .from(TABLE_NAME)
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            alert('ลบไม่สำเร็จ: ' + error.message);
+        } else {
+            fetchItems(); 
+        }
+    }
+
+    // เรียกดึงข้อมูลครั้งแรก
+    fetchItems();
+</script>
+
+</body>
+</html>
